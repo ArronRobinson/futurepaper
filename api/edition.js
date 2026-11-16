@@ -1,7 +1,7 @@
 // Vercel serverless function: turns a premise into a streamed front-page JSON.
 // Needs the ANTHROPIC_API_KEY environment variable (set it in Vercel, never in code).
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
 const SCENES = ["city","harbor","countryside","monument","bridge","crowd","sky"];
 const OVERLAYS = ["none","longneck","airship","rocket","statue","saucer"];
 
@@ -53,7 +53,7 @@ Rules:
 - LANGUAGE: Write every word in plain, readable English, always, even if this world's newspaper would really be printed in German, Latin, Japanese or any other language. Treat it as the English-language edition. Foreign words may appear only in proper names (people, places, products, the paper's name) and at most one short phrase per article; never write a full sentence in another language.
 - Respect every length limit; the page layout depends on them.
 
-Deliver the front page by calling the print_edition tool. Fill every field, following these lengths:
+Deliver the front page by calling the print_edition tool exactly once. Write nothing outside the tool call: no introduction, no draft, no summary. Fill every field, following these lengths:
 {
  "paperName": "≤ 28 chars",
  "motto": "≤ 60 chars",
@@ -115,7 +115,7 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 8000,
+        max_tokens: 20000,
         tools: [EDITION_TOOL],
         tool_choice: { type: "auto" },
         messages: [{ role: "user", content: buildPrompt(premise) }]
@@ -139,7 +139,7 @@ export async function POST(request) {
 
   const blocks = Array.isArray(data?.content) ? data.content : [];
   const tool = blocks.find(b => b.type === "tool_use" && b.name === "print_edition");
-  if (tool && tool.input && typeof tool.input === "object" && tool.input.lead) {
+  if (tool && tool.input && typeof tool.input === "object" && tool.input.lead && tool.input.lead.headline) {
     if (data.stop_reason === "max_tokens") console.warn("Edition hit max_tokens");
     return Response.json(tool.input, { headers: { "cache-control": "no-store" } });
   }
@@ -151,11 +151,11 @@ export async function POST(request) {
     try { return Response.json(JSON.parse(text.slice(a, z + 1)), { headers: { "cache-control": "no-store" } }); } catch {}
   }
 
-  const summary = "stop_reason=" + data?.stop_reason + ", blocks=" + (blocks.map(b => b.type).join("+") || "none");
+  const summary = "stop_reason=" + data?.stop_reason + ", blocks=" + (blocks.map(b => b.type).join("+") || "none") + ", output_tokens=" + data?.usage?.output_tokens;
   console.error("No usable edition", summary, raw.slice(0, 2000));
   return new Response(
     data?.stop_reason === "max_tokens"
-      ? "The edition ran too long and was cut off. Please try again."
+      ? "The edition ran too long and was cut off (" + summary + "). Please try again."
       : "Claude answered, but without a usable edition (" + summary + ").",
     { status: 502 }
   );
