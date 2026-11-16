@@ -117,7 +117,7 @@ export async function POST(request) {
         model: MODEL,
         max_tokens: 8000,
         tools: [EDITION_TOOL],
-        tool_choice: { type: "tool", name: "print_edition" },
+        tool_choice: { type: "auto" },
         messages: [{ role: "user", content: buildPrompt(premise) }]
       }),
       signal: AbortSignal.timeout(280000)
