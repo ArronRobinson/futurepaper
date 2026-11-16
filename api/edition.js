@@ -115,7 +115,11 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 20000,
+        max_tokens: 12000,
+        // Thinking is on by default for this model and used up the whole budget, so turn it off.
+        // (Haiku 5.5 only allows "disabled" at effort high or below.)
+        thinking: { type: "disabled" },
+        output_config: { effort: "medium" },
         tools: [EDITION_TOOL],
         tool_choice: { type: "auto" },
         messages: [{ role: "user", content: buildPrompt(premise) }]
